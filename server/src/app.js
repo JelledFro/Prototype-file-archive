@@ -3,6 +3,7 @@ const cors = require('cors')
 const lowdb = require('lowdb')
 const fileUpload = require('express-fileupload');
 var path = require('path');
+const fs = require('fs')
 
 
 const db = new lowdb.LowSync(new lowdb.JSONFileSync('./src/files/db.json'))
@@ -27,32 +28,61 @@ app.use(express.json())
 //routes
 app.get('/fileInfo/all', (req, res) => {
     db.read()
-    console.log('all files!')
     return res.json(db.data.fileInfo)
 })
 
-app.get('/file', (req, res) => {
+app.get('/file/:id', (req, res) => {
     console.log('getting file')
-    const filename = req.params["filename"]
-    res.sendFile('Programming task - english.pdf', fileUploadOptions);
+    //TODO find filename by id
+    const { fileInfo } = db.data
+    const id = req.params["id"]
+    
+    const itemToFind = fileInfo.find(file => file.id == id)
+    res.sendFile(itemToFind.filename, fileUploadOptions);
   }); 
 
 app.post('/file/newfile', (req, res) => {
     const file = req.files.file
     const fileInfo = req.body
-    console.log('file: ', file)
-    console.log('fileInfo: ', fileInfo)
+    let filename
+    if(fileInfo.filename){
+        filename = fileInfo.filename + "." + file.name.split('.')[1]
+    } else {
+        filename = file.name
+    }
     const fileData = {
-        "filename": file.name, //TODO: use fileInfo.filename unless empty 
+        "id": fileInfo.id,
+        "filename": filename, 
         "description": fileInfo.description,
         "date": fileInfo.date
       }
     db.data.fileInfo.push(fileData)
     db.write()
 
-    file.mv('./src/files/' + file.name);
+    file.mv('./src/files/' + filename);
     res.sendStatus(200)
 })
+
+app.delete('/file/:id', (req, res) => {
+    const { fileInfo } = db.data
+    const id = req.params["id"]
+    
+    const itemToDelete = fileInfo.find(file => file.id == id)
+    console.log('deleting file', itemToDelete) 
+
+
+
+    db.data.fileInfo = fileInfo.filter(file => file.id != id)
+    db.write()
+
+    const filepath = './src/files/' + itemToDelete.filename
+
+    fs.unlink(filepath, (err) => { 
+        if (err) throw err;
+        console.log('file was deleted');
+      });
+      
+  }); 
 
 app.listen(PORT, () => {
     console.log(`server started, listening on http://localhost:${PORT}`)

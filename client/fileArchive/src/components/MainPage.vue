@@ -4,7 +4,11 @@
     <el-table :data="tableData" :default-sort="{ prop: 'date', order: 'descending' }" style="width: 100%">
         <el-table-column prop="icon" label="" sortable width="180" >
             <!-- TODO -->
-            <img src="./../assets/pdf_icon.png" @click="getFile" /> 
+             <template #default="scope">
+             <a :href="'http://localhost:3010/file/' + scope.row.id">
+              <img :src="fileIcon(scope.row.filename)" /> 
+             </a>
+             </template>
         </el-table-column>
         <el-table-column prop="filename" label="Filename" sortable width="180" />
         <el-table-column prop="description" label="Description" sortable width="180" />
@@ -15,7 +19,7 @@
           link
           type="danger"
           size="small"
-          @click.prevent="deleteRow(scope.$index)"
+          @click.prevent="deleteRow(scope.row)"
         >
           Remove
         </el-button>
@@ -65,12 +69,11 @@ export default {
   },
   methods: {
     submitFile() {
-        console.log('sending file')
-        console.log(this.newFile.description)
         const formData = new FormData();
         const file = this.$refs.file.files[0]
         formData.append('file', file);
-        formData.append('filename', file.name); //TODO: v-model input field and 
+        formData.append('id', Date.now());
+        formData.append('filename', this.newFile.name); 
         formData.append('description', this.newFile.description);
         formData.append('date', new Date().toLocaleDateString());
         const headers = { 'Content-Type': 'multipart/form-data' };
@@ -87,28 +90,39 @@ export default {
             // TODO: open the file on click
         })
     },
-    getFileInfo() {
+    getAllFileInfo() {
         axios.get('http://localhost:3010/fileInfo/all')
     .then( (response) => {
         this.tableData = response.data
-
-        //TODO for each findFileExtension() and insert in json object property filetype
     })
     },    
-    deleteRow(index) {
-        //TODO
-    },
-    findFileExtension(){
-        //TODO
-    },
-    fileIcon(entry)  {
+    deleteRow(row) {
+      axios.delete('http://localhost:3010/file/' + row.id)
+      .then( (response) => {
+        console.log(response)
+    })
 
-        //TODO return path to correct icon based on filetype
+        //TODO
+    },
+    fileIcon(filename) {
+      const filetype = filename.split('.')[1]
+      let iconPath = "./src/assets/"
+      switch(filetype) {
+        case "pdf":
+          iconPath += "pdf_icon.png"
+          break;
+        case "xml":
+          iconPath += "xml_icon.png"
+          break;
+        case "jpg":
+          iconPath += "jpg_icon.png"
+          break;
+      }
+        return iconPath
     }
   },
     mounted() {
-    console.log(`the component is now mounted.`)
-    this.getFileInfo()
+    this.getAllFileInfo()
     this.getFile()
   }
 }
