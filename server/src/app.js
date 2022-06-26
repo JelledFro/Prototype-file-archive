@@ -81,6 +81,7 @@ app.delete('/file/:id', (req, res) => {
         if (err) throw err;
         console.log('file was deleted');
       });
+    res.sendStatus(200)
       
   }); 
 

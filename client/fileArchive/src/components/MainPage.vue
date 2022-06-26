@@ -1,19 +1,18 @@
 
 <template>
     <h1> File Archive </h1>
-    <el-table :data="tableData" :default-sort="{ prop: 'date', order: 'descending' }" style="width: 100%">
-        <el-table-column prop="icon" label="" sortable width="180" >
-            <!-- TODO -->
+    <el-table :data="pagedTableData" :default-sort="{ prop: 'date', order: 'descending' }" style="width: 100%">
+        <el-table-column prop="icon" label="" sortable width="70" >
              <template #default="scope">
              <a :href="'http://localhost:3010/file/' + scope.row.id">
               <img :src="fileIcon(scope.row.filename)" /> 
              </a>
              </template>
         </el-table-column>
-        <el-table-column prop="filename" label="Filename" sortable width="180" />
+        <el-table-column prop="filename" label="Filename" sortable width="250" />
         <el-table-column prop="description" label="Description" sortable width="180" />
-        <el-table-column prop="date" label="Date" sortable />
-            <el-table-column fixed="right" label="Operations" width="120">
+        <el-table-column prop="date" label="Date" sortable width="100"/>
+            <el-table-column fixed="right" label="Delete" width="120">
       <template #default="scope">
         <el-button
           link
@@ -21,18 +20,18 @@
           size="small"
           @click.prevent="deleteRow(scope.row)"
         >
-          Remove
+          X
         </el-button>
       </template>
     </el-table-column>
     </el-table>
+    <el-pagination layout="prev, pager, next" :total="this.dataSize" :page-size="this.pageSize" @current-change="setPage"/>
+
     <div>
-        <input type="file" accept=".xml,.pdf,.jpg" ref="file">
-        <label for="filename">Filename:</label>
-        <input type="text" id="filename" v-model="newFile.name">
-        <label for="description">Description:</label>
-        <input type="text" id="description" v-model="newFile.description">
-        <el-button type="primary" @click="submitFile">Submit</el-button>
+        <input type="file" accept=".xml,.pdf,.jpg" ref="file" style="display: block; margin: 10px 0">
+        <input type="text" id="filename" v-model="newFile.name" placeholder="Filename" style="display: block; margin: 10px 0x">
+        <input type="text" id="description" v-model="newFile.description" placeholder="Description" style="display: block; margin: 10px 0">
+        <el-button type="primary" @click="submitFile" style="display: block; margin: 10px 0;">Submit</el-button>
     </div>
 
 </template>
@@ -42,24 +41,12 @@ import 'element-plus/dist/index.css'
 import axios from 'axios';
 import { ref } from 'vue'
 
-// const uploadRef = ref<UploadInstance>()
-
-
 export default {
   data() {
     return {
-        tableData: [
-            {
-                filename: 'file.pdf',
-                description: 'a file',
-                date: '2016-05-03',
-            },
-             {
-                filename: 'file2.png',
-                description: 'another file',
-                date: '2022-11-17',
-            }         
-        ],
+        tableData: [],
+        page: 1,
+        pageSize: 5,
         file: '',
         newFile : {
             name: '',
@@ -67,12 +54,21 @@ export default {
         }
     }
   },
+   computed: {
+     pagedTableData() {
+       return this.tableData.slice(this.pageSize * this.page - this.pageSize, this.pageSize * this.page)
+     }, 
+     dataSize() {
+      return this.tableData.length
+     }
+   },
   methods: {
     submitFile() {
         const formData = new FormData();
         const file = this.$refs.file.files[0]
+        const id =  Date.now()
         formData.append('file', file);
-        formData.append('id', Date.now());
+        formData.append('id', id);
         formData.append('filename', this.newFile.name); 
         formData.append('description', this.newFile.description);
         formData.append('date', new Date().toLocaleDateString());
@@ -80,15 +76,15 @@ export default {
         axios.post('http://localhost:3010/file/newfile', formData, { headers }).then((res) => {
           res.data.files; // binary representation of the file
           res.status; // HTTP status
+          const newEntry = {
+                id: id,
+                filename: this.newFile.name,
+                description: this.newFile.description,
+                date: new Date().toLocaleDateString(),
+            }
+          this.tableData.push(newEntry)
         });
 
-    },
-    getFile() {
-            axios.get('http://localhost:3010/file')
-        .then( (response) => {
-            console.log(response);
-            // TODO: open the file on click
-        })
     },
     getAllFileInfo() {
         axios.get('http://localhost:3010/fileInfo/all')
@@ -100,9 +96,8 @@ export default {
       axios.delete('http://localhost:3010/file/' + row.id)
       .then( (response) => {
         console.log(response)
+        this.tableData = this.tableData.filter(entry => entry.id != row.id)
     })
-
-        //TODO
     },
     fileIcon(filename) {
       const filetype = filename.split('.')[1]
@@ -119,11 +114,13 @@ export default {
           break;
       }
         return iconPath
-    }
+    },
+    setPage (n) {
+      this.page = n
+  }
   },
     mounted() {
     this.getAllFileInfo()
-    this.getFile()
   }
 }
 </script>
